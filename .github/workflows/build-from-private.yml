@@ -1,0 +1,82 @@
+name: build-from-private
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: Private source repo in owner/name format
+        required: true
+        type: string
+      source_ref:
+        description: Branch/tag/commit to build
+        required: true
+        type: string
+      artifact_name:
+        description: Artifact name to upload
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Setup SSH deploy key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SOURCE_REPO_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone private source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ inputs.source_ref }}" \
+            "git@github.com:${{ inputs.source_repo }}.git" source
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install just
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install just --locked
+
+      - name: Install codex-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm i -g @openai/codex
+
+      - name: Run source build entrypoint
+        shell: bash
+        working-directory: source
+        env:
+          OPENAI_API_KEY_STAGING: dummy
+        run: |
+          set -euo pipefail
+          bash tool/ci/build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: source/out
+          retention-days: 1
