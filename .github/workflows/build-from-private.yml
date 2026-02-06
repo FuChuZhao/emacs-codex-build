@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm i -g @openai/codex
+          npm i -g @openai/codex@0.98.0
 
       - name: Run source build entrypoint
         shell: bash
@@ -75,6 +75,7 @@ jobs:
           bash tool/ci/build.sh
 
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
