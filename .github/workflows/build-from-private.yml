@@ -37,8 +37,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch "${{ inputs.source_ref }}" \
-            "git@github.com:${{ inputs.source_repo }}.git" source
+          git clone "git@github.com:${{ inputs.source_repo }}.git" source
+          cd source
+          git checkout --force "${{ inputs.source_ref }}"
+          git rev-parse HEAD
 
       - name: Setup Python
         uses: actions/setup-python@v5
